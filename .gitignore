@@ -1,0 +1,9 @@
+node_modules/
+.sites-runtime/
+.env
+__pycache__/
+*.gpw
+
+# Restore the pinned runtime with scripts/fetch-runtime.py
+/dist/runtime/*
+!/dist/runtime/PYODIDE-LICENSE

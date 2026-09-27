@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#14282f">
+  <meta name="description" content="基于 GPAW 官方教程的中文交互实验室。运行 Python、观察晶体与光谱、导入计算结果，逐步学习材料光学性质。">
+  <title>GPAW 交互实验室 · 材料与光谱</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2314282f'/%3E%3Cpath d='M5 22L10 22L14 8L18 24L23 14L27 14' fill='none' stroke='%2375e3cc' stroke-width='2.4'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.mjs"></script>
+</head>
+<body>
+<a class="skip" href="#main">跳到实验区</a>
+<aside class="sidebar" aria-label="实验课程">
+  <a class="brand" href="./" aria-label="GPAW 实验室首页"><span class="brand-symbol">G<span>↗</span></span><span>GPAW<span class="brand-sub">交互实验室</span></span></a>
+  <div class="side-label">MATERIALS / OPTICS</div>
+  <div class="nav-heading">学习路线 <span>05 个实验</span></div>
+  <nav id="lessons"></nav>
+  <div class="sidebar-bottom">
+    <div class="runtime-info"><span class="runtime-mark">Py</span><div>你的浏览器就是实验台<small>Python · 数值计算 · 绘图</small></div></div>
+    <p>从参数出发，理解每一幅图。<br>真实 GPAW 任务在本地或集群运行。</p>
+    <button class="side-link" id="open-guide">运行环境与使用说明 <span>↗</span></button>
+    <a class="side-link" href="https://gpaw.readthedocs.io/tutorialsexercises/tutorialsexercises.html" target="_blank" rel="noopener noreferrer">GPAW 官方教程 <span>↗</span></a>
+  </div>
+</aside>
+<div class="page">
+  <header class="topbar"><div class="breadcrumb">学习工作台 <span>/</span> <span id="crumb">光学响应</span></div><button class="engine-status" id="engine-status" aria-label="查看 Python 运行环境说明">Python 未启动</button></header>
+  <main id="main">
+    <section class="lesson-heading"><div><div class="eyebrow" id="lesson-number">EXPERIMENT 03</div><h1 id="lesson-title">从介电函数读懂光谱</h1><p id="lesson-intro"></p></div><span class="mode-badge" id="mode-badge">教学模型</span></section>
+    <section class="parameters panel" aria-labelledby="parameter-heading"><div class="panel-label"><h2 id="parameter-heading">实验参数</h2><span id="parameter-note">拖动参数观察变化，再生成代码</span></div><div id="controls" class="controls"></div><div class="parameter-footer"><p id="live-metrics"></p><button id="generate-code" class="button small">将参数写入代码 <span>↙</span></button></div></section>
+    <div class="workspace">
+      <section class="editor-panel panel" aria-labelledby="editor-title">
+        <div class="panel-head"><h2 id="editor-title"><span class="file-icon">Py</span> <span id="filename">optical_model.py</span></h2><div class="icon-actions"><button id="import-py" title="导入 Python 文件">导入 .py</button><button id="download-py" title="下载编辑器中的 Python 文件">下载 ↓</button></div></div>
+        <div class="editor-toolbar"><span id="editor-type">可编辑 Python</span><button id="reset-code">恢复示例</button></div>
+        <div class="code-area"><div id="line-numbers" aria-hidden="true">1</div><textarea id="code" aria-label="Python 代码编辑器" spellcheck="false" autocomplete="off" autocapitalize="off" wrap="off"></textarea></div>
+        <div class="editor-bottom"><span id="code-note">Ctrl / ⌘ + Enter 运行</span><div><button id="stop" class="button small" hidden>停止</button><button id="run" class="button primary"><span aria-hidden="true">▶</span> 运行 Python</button></div></div>
+        <p class="editor-help">可运行标准库、NumPy、SciPy、Matplotlib。<button class="text-button" id="files-help">添加数据文件</button></p>
+      </section>
+      <section class="output-panel panel" aria-labelledby="output-title">
+        <div class="panel-head"><h2 id="output-title">观察与结果</h2><div class="result-tabs" role="tablist" aria-label="结果视图"><button id="preview-tab" role="tab" aria-selected="true" aria-controls="preview-view">交互预览</button><button id="python-tab" role="tab" aria-selected="false" aria-controls="python-view" tabindex="-1">Python 输出</button></div></div>
+        <div id="preview-view" role="tabpanel" aria-labelledby="preview-tab"><div class="chart-heading"><span id="chart-title"></span><span class="micro-badge" id="chart-badge">解析模型</span></div><div id="chart" class="chart"></div><div id="legend" class="legend"></div><p class="chart-caption" id="chart-caption"></p></div>
+        <div id="python-view" role="tabpanel" aria-labelledby="python-tab" hidden><div class="run-summary" id="run-summary" role="status">运行代码后，图像和输出会出现在这里。</div><div id="figures" class="figures"></div><pre id="console" aria-label="Python 标准输出与错误">等待运行…</pre><div id="artifacts" class="artifacts"></div></div>
+      </section>
+    </div>
+    <section class="learning panel"><div class="learning-tabs" role="tablist" aria-label="学习材料"><button id="tab-theory" role="tab" aria-selected="true" aria-controls="learning-content">理解原理</button><button id="tab-steps" role="tab" aria-selected="false" aria-controls="learning-content" tabindex="-1">动手实验</button><button id="tab-source" role="tab" aria-selected="false" aria-controls="learning-content" tabindex="-1">官方资料</button></div><div id="learning-content" role="tabpanel" aria-labelledby="tab-theory"></div></section>
+    <footer>独立制作的 GPAW 学习工具 · 非 GPAW 官方产品<span>教程核对：2026.09.27</span></footer>
+  </main>
+</div>
+<div id="toast" role="status" hidden></div>
+<input id="py-input" type="file" accept=".py,text/x-python" hidden>
+<input id="csv-input" type="file" accept=".csv,.txt,text/csv,text/plain" hidden>
+<input id="asset-input" type="file" accept=".csv,.txt,.dat,.json,.npy,.npz,.png,.jpg,.jpeg,.svg,.py" multiple hidden>
+<dialog id="guide"><div class="dialog-header"><h2>先认识你的实验台</h2><button id="close-guide" aria-label="关闭使用说明">✕</button></div><div class="dialog-body"><p>点击「运行 Python」启动环境。首次使用需要下载约 28 MB 的运行文件；如果导入 SciPy，还会加载约 15 MB。后续运行会复用环境。</p><h3>可以直接做什么？</h3><ul><li>编辑或导入 .py，运行标准库、NumPy、SciPy 和 Matplotlib。</li><li>自动显示 plt.show() 的图像；下载图像和生成的数据文件。</li><li>导入 GPAW 五列 df.csv，比较有、无局域场效应的光谱。</li></ul><h3>文件与运行</h3><p>导入文件放在 Python 的当前目录，只保留在当前网页会话。每次运行使用新的变量命名空间；需要保留的结果请下载。刷新或停止环境会清空临时文件。程序运行超过 90 秒会停止，可修改代码后重试。</p><button class="button" id="add-assets">添加 Python 所需的数据文件</button><div id="asset-list"></div><h3>真实 GPAW 计算</h3><p>浏览器不包含 GPAW 原生扩展、PAW 数据和 MPI。第 05 课可以生成 GPAW 脚本，在安装了 GPAW 的 Linux、WSL 或集群运行。网站没有连接远程计算服务器，也不模拟 GPAW 的运行成功。</p><h3>导出图像</h3><p>推荐使用英文坐标标签，内置字体支持数学符号。PNG、JPEG 和 SVG 文件可以显示与下载。网页会以图片形式显示 SVG，不执行其中的脚本。</p><p class="note">内置代码只在你的浏览器计算，不上传脚本和数据。自行导入的脚本可调用网络，请仅运行你信任的文件。</p></div></dialog>
+</body></html>
