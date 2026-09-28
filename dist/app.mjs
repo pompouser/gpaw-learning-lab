@@ -1,11 +1,13 @@
 import {lessons} from "./lessons.mjs";
 import {defaults,opticalSpectrum,convergence,cutoffValues,exampleEnergies,parseDielectricCSV,sampleCSV,safeFilename,applyParameters,escapeHTML as esc} from "./physics.mjs";
 import {lineChart,crystalChart} from "./charts.mjs";
+import {startSandbox} from "./sandbox.mjs";
+import {isPreviewablePNG} from "./runtime-security.mjs";
 
 const $=id=>document.getElementById(id);
 const state={lesson:"optics",parameters:structuredClone(defaults),templates:{},drafts:{},filename:"optical_model.py",dirty:false,
   data:null,dataName:null,dataSynthetic:false,files:new Map(),busy:false,ready:false,worker:null,learning:"theory",urls:[],lastResult:null};
-let toastTimer,runTimer,initTimer,pendingRun=null;
+let toastTimer,pendingRun=null;
 function notify(message){$("toast").textContent=message;$("toast").hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$("toast").hidden=true,5000);}
 function currentLesson(){return lessons.find(l=>l.id===state.lesson);}
 function setStatus(text,type=""){$("engine-status").textContent=text;$("engine-status").className="engine-status "+type;}
@@ -133,68 +135,49 @@ function addOutputFigure(url,name){
 function artifactURL(base64,name){
   const bytes=Uint8Array.from(atob(base64),c=>c.charCodeAt(0));
   const extension=name.split(".").pop().toLowerCase();
-  const mime={png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg",svg:"image/svg+xml",csv:"text/csv",txt:"text/plain"}[extension]||"application/octet-stream";
+  const mime={png:"image/png",csv:"text/csv",txt:"text/plain"}[extension]||"application/octet-stream";
   const url=URL.createObjectURL(new Blob([bytes],{type:mime}));state.urls.push(url);return url;
 }
 function clearOutput(){
   state.urls.forEach(URL.revokeObjectURL);state.urls=[];$("figures").replaceChildren();$("artifacts").replaceChildren();$("console").textContent="";$("run-summary").className="run-summary";
 }
 function finishError(message){
-  clearTimeout(runTimer);clearTimeout(initTimer);
-  $("run-summary").textContent="运行未完成，请查看错误后重试。";$("run-summary").classList.add("fail");$("console").textContent=message;
-  setBusy(false);setStatus(state.ready?"Python 就绪":"Python 加载失败",state.ready?"ready":"error");
-  if(!state.ready){state.worker?.terminate();state.worker=null;}
+  state.worker=null;state.ready=false;
+  $("run-summary").textContent="运行未完成，隔离环境已关闭。";$("run-summary").classList.add("fail");$("console").textContent=message;
+  setBusy(false);setStatus("Python 已关闭");
   if(pendingRun){pendingRun.resolve({ok:false,error:message});pendingRun=null;}
 }
-function stopRuntime(reason="已停止运行。Python 环境和临时文件已重置。"){
-  state.worker?.terminate();state.worker=null;state.ready=false;state.files.clear();
-  finishError(reason);setStatus("Python 已重置");$("asset-list").textContent="";notify(reason);
-}
-function createWorker(){
-  state.worker=new Worker(new URL("./python-worker.mjs",import.meta.url),{type:"module"});
-  state.worker.onerror=e=>{state.ready=false;finishError(e.message||"Python 运行环境加载失败。");};
-  state.worker.onmessage=({data})=>{
-    if(data.type==="status"){$("run-summary").textContent=data.text;setStatus(data.text,"loading");}
-    if(data.type==="ready"){
-      clearTimeout(initTimer);state.ready=true;setStatus("Python "+data.version+" 就绪","ready");dispatchRun();
-    }
-    if(data.type==="error")finishError(data.message);
-    if(data.type==="result"){
-      clearTimeout(runTimer);state.lastResult=data;setBusy(false);setStatus("Python 就绪","ready");
-      $("run-summary").textContent=(data.error?"运行出现错误":"运行完成")+" · "+data.seconds.toFixed(2)+" s · "+data.figures.length+" 幅绘图";
-      $("run-summary").classList.toggle("fail",!!data.error);
-      $("console").textContent=(data.output||"无标准输出。")+(data.error?"\n"+data.error:"");
-      for(let i=0;i<data.figures.length;i++)addOutputFigure(artifactURL(data.figures[i],"figure.png"),"figure_"+(i+1)+".png");
-      for(const file of data.artifacts){
-        const url=artifactURL(file.data,file.name);
-        if(/\.(png|jpe?g|svg)$/i.test(file.name))addOutputFigure(url,file.name);
-        else {const a=document.createElement("a");a.href=url;a.download=file.name;a.textContent=file.name+" ↓";$("artifacts").append(a);}
-      }
-      if(pendingRun){pendingRun.resolve({ok:!data.error,seconds:data.seconds,figures:data.figures.length,output:data.output,error:data.error});pendingRun=null;}
-    }
-  };
-}
-function dispatchRun(){
-  if(!pendingRun)return;
-  const files=[...state.files.entries()].map(([name,data])=>({name,data}));
-  if(state.lesson==="data" && state.data)files.push({name:"df.csv",data:normalizedCSV()});
-  runTimer=setTimeout(()=>stopRuntime("运行超过 90 秒，已停止并重置环境。请缩小计算规模后重试。"),90000);
-  state.worker.postMessage({type:"run",code:pendingRun.code,filename:pendingRun.filename,files});
+function stopRuntime(){state.worker?.cancel();}
+function renderResult(data){
+  state.worker=null;state.ready=false;state.lastResult=data;setBusy(false);setStatus("运行完成 · 环境已关闭");
+  $("run-summary").textContent=(data.error?"运行出现错误":"运行完成")+" · "+data.seconds.toFixed(2)+" s · "+data.figures.length+" 幅绘图";
+  $("run-summary").classList.toggle("fail",!!data.error);
+  $("console").textContent=(data.output||"无标准输出。")+(data.error?"\n"+data.error:"");
+  for(let i=0;i<data.figures.length;i++)addOutputFigure(artifactURL(data.figures[i],"figure.png"),"figure_"+(i+1)+".png");
+  for(const file of data.artifacts){
+    const url=artifactURL(file.data,file.name);
+    if(/\.png$/i.test(file.name)&&isPreviewablePNG(file.data))addOutputFigure(url,file.name);
+    else {const a=document.createElement("a");a.href=url;a.download=file.name;a.textContent=file.name+" ↓";$("artifacts").append(a);}
+  }
+  if(pendingRun){pendingRun.resolve({ok:!data.error,seconds:data.seconds,figures:data.figures.length,output:data.output,error:data.error});pendingRun=null;}
 }
 async function runPython(){
   if(state.busy)return {ok:false,error:"已有运行中的任务"};
   if(state.lesson==="gpaw"){download($("code").value,state.filename,"text/x-python");notify("已下载脚本。请在原生 GPAW 环境中运行。");return {ok:true,downloaded:true,executed:false};}
-  if(state.lesson==="data" && !state.data){notify("请先导入 CSV 或载入示例数据。");return {ok:false,error:"缺少 df.csv"};}
+  if(state.lesson==="data"&&!state.data){notify("请先导入 CSV 或载入示例数据。");return {ok:false,error:"缺少 df.csv"};}
   if(!$("code").value.trim()){notify("请先输入 Python 代码。");return {ok:false,error:"代码为空"};}
   clearOutput();setOutputTab("python");setBusy(true);
-  const promise=new Promise(resolve=>{pendingRun={resolve,code:$("code").value,filename:state.filename};});
-  if(state.ready)dispatchRun();
-  else{
-    $("run-summary").textContent="首次启动正在加载 Python 与绘图库，请稍候。";setStatus("正在启动 Python…","loading");
-    initTimer=setTimeout(()=>stopRuntime("Python 加载超时。请检查网络后重新运行。"),180000);
-    try{if(!state.worker)createWorker();state.worker.postMessage({type:"init"});}
-    catch(e){finishError(String(e));}
-  }
+  const promise=new Promise(resolve=>{pendingRun={resolve};});
+  const files=[...state.files.entries()].filter(([name])=>!(state.lesson==="data"&&name==="df.csv")).map(([name,data])=>({name,data}));
+  if(state.lesson==="data"&&state.data)files.push({name:"df.csv",data:normalizedCSV()});
+  $("run-summary").textContent="正在启动独立 Python 环境…";
+  try{
+    state.worker=startSandbox({code:$("code").value,filename:state.filename,files},{
+      onStatus:text=>{$("run-summary").textContent=text;setStatus(text,"loading");},
+      onReady:version=>{state.ready=true;setStatus("Python "+version+" · 已隔离","ready");},
+      onResult:renderResult,onError:finishError
+    });
+  }catch(error){finishError(error.message);}
   return promise;
 }
 
@@ -234,6 +217,7 @@ $("asset-input").onchange=async e=>{
   const files=[...e.target.files];e.target.value="";
   for(const file of files){
     if(file.size>10*1024*1024){notify(file.name+" 超过 10 MB，未添加。");continue;}
+    if(state.files.size>=100&&!state.files.has(safeFilename(file.name))){notify("最多导入 100 个文件。");break;}
     if([...state.files.values()].reduce((a,b)=>a+b.byteLength,0)+file.size>30*1024*1024){notify("当前会话导入文件总量不能超过 30 MB。");break;}
     state.files.set(safeFilename(file.name),await file.arrayBuffer());
   }

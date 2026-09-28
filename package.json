@@ -1,0 +1,8 @@
+{
+  "name": "gpaw-learning-lab",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/serve.mjs",
+    "test": "node tests/security.mjs && node tests/verify.mjs"
+  }
+}

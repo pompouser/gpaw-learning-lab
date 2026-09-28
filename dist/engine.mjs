@@ -1,6 +1,5 @@
-import { loadPyodide } from "./runtime/pyodide.mjs";
-
-export async function createEngine({indexURL, runnerSource, onStatus=()=>{}}){
+export async function createEngine({indexURL, runnerSource, onStatus=()=>{},loadRuntime}){
+  const loadPyodide=loadRuntime||(await import('./runtime/pyodide.mjs')).loadPyodide;
   onStatus("正在启动 Python…");
   const py = await loadPyodide({indexURL, stdout:()=>{}, stderr:()=>{}});
   onStatus("正在加载 NumPy 与 Matplotlib…");
@@ -20,7 +19,11 @@ export async function createEngine({indexURL, runnerSource, onStatus=()=>{}}){
       await py.loadPackagesFromImports(code);
       onStatus("Python 正在计算…");
       const fn=py.globals.get("_lab_run");
-      try{return JSON.parse(fn(code,filename));}
+      try{
+        const result=fn(code,filename);
+        if(typeof result!=="string"||result.length>30*1024*1024)throw new Error("输出超过安全大小限制。");
+        return JSON.parse(result);
+      }
       finally{fn.destroy();}
     }
   };

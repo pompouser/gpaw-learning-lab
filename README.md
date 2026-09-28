@@ -4,14 +4,14 @@
 
 私密网站：[GPAW 交互实验室](https://gpaw-learning-lab.pompouser987.chatgpt.site)
 
-本 GitHub 仓库保存应用源码。Pyodide 及数值库二进制不纳入仓库，首次运行请执行下面的下载命令恢复；网站部署中已经包含这些运行文件。
+GitHub 仓库保存源码，运行文件通过下方的恢复脚本获取；网站部署已经包含这些运行文件。
 
 ## 能做什么
 
 - 五个实验：硅晶体几何、收敛判断、Lorentz 光谱模型、GPAW 五列 CSV 分析、原生 GPAW 脚本导出。
 - 浏览器内运行 Python 3.13、NumPy、Matplotlib 和 SciPy，支持导入 .py 和辅助数据文件。
-- 自动捕获 Matplotlib 图像，显示并下载 PNG、JPEG、SVG 及生成的数据文件。
-- Web Worker 执行计算，提供停止按钮与 90 秒运行超时。
+- 自动捕获 Matplotlib 图像，预览尺寸受限的 PNG，并下载 PNG、JPEG、SVG 及生成的数据文件。
+- 每次运行创建独立的隔离 iframe / Web Worker，提供停止按钮与 90 秒运行超时。
 - 中文教学说明、可调参数、即时预览、可编辑代码、官方资料链接与键盘操作。
 - Sites 私密部署；应用本身无数据库、遥测或代码上传接口。
 
@@ -21,9 +21,11 @@
 
 光谱模型和收敛数据均明确标注为教学用途。晶体课计算精确几何。导入的 CSV 保持原数值；大文件只对 SVG 预览抽样，Python 使用完整数据。
 
-每次运行使用新的 Python 变量命名空间，文件保留于 Worker 的临时目录。停止环境或刷新会清空临时文件；用户应下载结果。单个导入数据文件最多 10 MB，总计 30 MB；CSV 分析最多 5 MB、20,000 行。自动导出最多 12 幅绘图和 20 个新建或更新的文件（每个最多 10 MB、总计最多 20 MB）。子目录中的文件不自动导出。输入式终端交互、原生 GUI 和任意原生 Python 扩展不受支持。
+每次运行创建新的 Python 环境，并重新载入用户添加的数据文件。运行结束、停止或超时后销毁整个计算环境；生成文件不会带入下一次运行，需要先下载再导入。导入文件留在主页面的当前会话，刷新后清空。单个输入最多 10 MB、总计 30 MB、最多 100 个文件；代码最多 2 MB；CSV 分析最多 5 MB、20,000 行。输出最多 12 幅图和 20 个文件，合计最多 20 MB；单个最多 10 MB。PNG 预览最多 4096 × 4096 且总像素不超过 1600 万；JPEG / SVG 仅下载，不内嵌渲染。
 
-内置脚本不发送用户数据。用户自行导入的 Python 可通过浏览器 API 发起网络请求，因此应仅运行可信代码。Web Worker 用于响应性与取消，不作为恶意代码安全沙箱。
+计算在不具有站点同源权限的 sandbox iframe 中启动。Blob Worker 继承 `connect-src 'none'`，先自检策略，再执行 Python；运行文件先由主页面下载、校验并传入，只能从内存读取。禁止外部联网、远程包安装以及运行时从 URL 下载数据。支持随站点提供的标准库、NumPy、Matplotlib、SciPy 及其依赖。
+
+专用 MessageChannel 与普通 Worker postMessage 分开。主页面独立计时，结束时先停止并销毁环境，再处理输出；结果须通过类型、文件名、大小与图像尺寸校验。**这些措施不是完整虚拟机或浏览器漏洞防护。** CPU / 内存不能硬配额，复杂代码仍可能使标签页卡顿；只运行可信代码，不导入敏感数据。详见 [SECURITY.md](SECURITY.md)。
 
 ## 本地使用
 
@@ -34,20 +36,21 @@
 
 打开 http://localhost:8000 。不要直接以 file:// 打开页面。
 
-运行环境固定为 Pyodide 0.28.3；所有内置运行文件随网站提供，无运行时第三方 CDN 依赖。NumPy、Matplotlib 首次加载约 28 MB，SciPy 按需增加约 15 MB。下载内容可由浏览器缓存。
+运行环境固定为 Pyodide 0.28.3；所有内置运行文件随网站提供，无运行时第三方 CDN 依赖。首次预载约 43 MB，包含 SciPy。后续运行复用下载内容，但不复用 Python 状态；首次准备和每次启动会比长期共用环境更慢。
 
 如从不包含运行时二进制的源码包恢复：
 
     python scripts/fetch-runtime.py
 
-下载脚本校验锁文件中各 Python 包的 SHA-256。
+下载脚本依据提交到源码的 scripts/runtime-lock.json 校验所有核心 JS、WASM、标准库和 Python 包的 SHA-256。
 
 ## 验证
 
+    node tests/security.mjs
     node tests/verify.mjs
     python -m py_compile dist/examples/*.py dist/runner.py
 
-测试实际启动 Pyodide，执行四个浏览器实验，验证 PNG、SciPy、导入文件、错误恢复以及导出 SVG / 文本。另检查光谱公式、收敛候选点、CSV 错误输入和路径清理。计算测试在 Node 的 WebAssembly 运行环境中执行；不等同于完整浏览器界面验证。
+测试实际启动 Pyodide，执行四个浏览器实验，验证 PNG、SciPy、导入文件、错误恢复以及导出 SVG / 文本。另检查光谱公式、收敛候选点、CSV 错误输入和路径清理。安全测试覆盖独立超时、消息通道、销毁顺序、输入输出限制、内存文件访问规则和 SHA-256。tests/fixtures/ 提供可在浏览器编辑器复测的无敏感数据安全用例。
 
 ## 文件结构
 
@@ -55,6 +58,8 @@
 - dist/physics.mjs：即时预览的解析计算与 CSV 解析
 - dist/charts.mjs：SVG 科学图表
 - dist/lessons.mjs：中文教学内容与官方来源
+- dist/sandbox.mjs、dist/runtime-security.mjs：隔离环境、主页面计时与输出校验
+- dist/offline-runtime.mjs、dist/sha256.mjs：内存运行文件与完整性校验
 - dist/engine.mjs、dist/python-worker.mjs、dist/runner.py：真实 Python 执行与图像捕获
 - dist/examples/：独立 Python 实验
 - dist/runtime/：固定版本的 Pyodide 与 Python 包

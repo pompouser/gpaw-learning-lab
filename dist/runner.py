@@ -21,6 +21,7 @@ _plt.rcParams.update({
     "figure.dpi": 110,
 })
 _lab_figures = []
+_lab_figure_bytes = 0
 _lab_workdir = "/home/pyodide"
 _os.makedirs(_lab_workdir, exist_ok=True)
 _os.chdir(_lab_workdir)
@@ -33,12 +34,14 @@ class _CappedText(_io.StringIO):
         return len(value)
 
 def _capture_figures(*args, **kwargs):
+    global _lab_figure_bytes
     for number in _plt.get_fignums():
         if len(_lab_figures) >= 12:
             break
         buffer = _io.BytesIO()
         _plt.figure(number).savefig(buffer, format="png", dpi=110, bbox_inches="tight")
-        if buffer.tell() <= 10 * 1024 * 1024:
+        if buffer.tell() <= 10 * 1024 * 1024 and _lab_figure_bytes + buffer.tell() <= 20 * 1024 * 1024:
+            _lab_figure_bytes += buffer.tell()
             _lab_figures.append(_base64.b64encode(buffer.getvalue()).decode("ascii"))
     _plt.close("all")
 
@@ -50,10 +53,11 @@ def _file_state():
     return result
 
 def _lab_run(code, filename):
-    global _lab_figures
+    global _lab_figures, _lab_figure_bytes
     _os.chdir(_lab_workdir)
     _plt.close("all")
     _lab_figures = []
+    _lab_figure_bytes = 0
     _plt.show = _capture_figures
     before = _file_state()
     output = _CappedText()
@@ -73,7 +77,7 @@ def _lab_run(code, filename):
                 error = (error or "") + "\nFigure rendering failed: " + str(exc)
     artifacts = []
     allowed = {".png", ".jpg", ".jpeg", ".svg", ".csv", ".txt", ".dat", ".json", ".npy", ".npz", ".py"}
-    total_bytes = 0
+    total_bytes = _lab_figure_bytes
     for name, digest in _file_state().items():
         path = _Path(_lab_workdir) / name
         if before.get(name) == digest or path.suffix.lower() not in allowed:
@@ -83,5 +87,5 @@ def _lab_run(code, filename):
             continue
         total_bytes += len(data)
         artifacts.append({"name": name, "data": _base64.b64encode(data).decode("ascii")})
-    return _json.dumps({"output": output.getvalue(), "error": error,
+    return _json.dumps({"output": output.getvalue(), "error": error[:60000] if error else None,
                         "figures": _lab_figures, "artifacts": artifacts})
