@@ -11,7 +11,7 @@
   <script type="module" src="./app.mjs"></script>
 </head>
 <body>
-<a class="skip" href="#main">跳到实验区</a>
+<a class="skip" href="#main">跳到课程内容</a>
 <aside class="sidebar" aria-label="实验课程">
   <a class="brand" href="./" aria-label="GPAW 实验室首页"><span class="brand-symbol">G<span>↗</span></span><span>GPAW<span class="brand-sub">交互实验室</span></span></a>
   <div class="side-label">MATERIALS / OPTICS</div>
@@ -28,6 +28,10 @@
   <header class="topbar"><div class="breadcrumb">学习工作台 <span>/</span> <span id="crumb">光学响应</span></div><button class="engine-status" id="engine-status" aria-label="查看 Python 运行环境说明">Python 未启动</button></header>
   <main id="main">
     <section class="lesson-heading"><div><div class="eyebrow" id="lesson-number">EXPERIMENT 03</div><h1 id="lesson-title">从介电函数读懂光谱</h1><p id="lesson-intro"></p></div><span class="mode-badge" id="mode-badge">教学模型</span></section>
+    <div class="course-tabs" role="tablist" aria-label="课程视图"><button id="theory-mode" role="tab" aria-selected="true" aria-controls="theory-panel">理论教程 <span>理解与推导</span></button><button id="lab-mode" role="tab" aria-selected="false" aria-controls="lab-panel" tabindex="-1">交互实验 <span>参数、代码与结果</span></button></div>
+    <section id="theory-panel" role="tabpanel" aria-labelledby="theory-mode"></section>
+    <section id="lab-panel" role="tabpanel" aria-labelledby="lab-mode" hidden>
+    <div id="material-toolbar" class="material-toolbar"><label for="material-select">本课材料案例</label><select id="material-select"><option value="Si">Si · 硅</option><option value="Al">Al · 铝</option><option value="Ag">Ag · 银</option></select><p id="material-note"></p></div>
     <section class="parameters panel" aria-labelledby="parameter-heading"><div class="panel-label"><h2 id="parameter-heading">实验参数</h2><span id="parameter-note">拖动参数观察变化，再生成代码</span></div><div id="controls" class="controls"></div><div class="parameter-footer"><p id="live-metrics"></p><button id="generate-code" class="button small">将参数写入代码 <span>↙</span></button></div></section>
     <div class="workspace">
       <section class="editor-panel panel" aria-labelledby="editor-title">
@@ -43,12 +47,16 @@
         <div id="python-view" role="tabpanel" aria-labelledby="python-tab" hidden><div class="run-summary" id="run-summary" role="status">运行代码后，图像和输出会出现在这里。</div><div id="figures" class="figures"></div><pre id="console" aria-label="Python 标准输出与错误">等待运行…</pre><div id="artifacts" class="artifacts"></div></div>
       </section>
     </div>
+    <section id="model-comparison" class="comparison-panel panel" hidden aria-labelledby="comparison-title"><div class="comparison-head"><div><div class="eyebrow">COMPARE MECHANISMS</div><h2 id="comparison-title">Si / Al / Ag：三种机制放在一起看</h2></div><label>比较的物理量<select id="comparison-observable"><option value="loss">损失函数 L</option><option value="im">介电损耗 ε₂</option><option value="alpha">吸收系数 α</option></select></label></div><p class="comparison-note">固定默认教学参数 · 不跟随上方滑块 · 非真实材料预测。共用 0.05–25 eV 网格，不归一化。</p><div id="comparison-chart" class="chart"></div><div id="comparison-legend" class="legend"></div><details><summary>查看三套模型的参数与适用边界</summary><div id="comparison-parameters"></div></details><div class="action-row"><button id="compare-python" class="button primary">将对比写入 Python</button><button id="compare-csv" class="button">下载模型对比 CSV</button><button class="button" id="compare-theory">查看模型推导</button></div></section>
+    <section id="data-comparison" class="comparison-panel panel" hidden aria-labelledby="data-comparison-title"><div class="eyebrow">COMPARE YOUR RESULTS</div><h2 id="data-comparison-title">比较自己的材料计算结果</h2><p>为原生 GPAW 的五列 df.csv 指定材料标签。网页不会自动识别材料或验证收敛；请核对结构、方法、方向和展宽。</p><div class="data-comparison-controls"><label>文件的材料标签<select id="data-material"><option>Si</option><option>Al</option><option>Ag</option></select></label><button class="button" id="add-comparison">添加 / 替换该材料 CSV</button><label>有局域场的物理量<select id="data-observable"><option value="im">介电损耗 ε₂</option><option value="loss">损失函数 L</option><option value="alpha">吸收系数 α</option></select></label><button class="button" id="clear-comparison">清空对比</button></div><div id="data-comparison-files"></div><p id="data-comparison-status" role="status">加入至少两种材料的数据即可对比。</p><div id="data-comparison-chart" class="chart" hidden></div><div id="data-comparison-legend" class="legend"></div><p class="comparison-note">仅显示共同能量范围；保留各自采样点，不插值、不移动峰位、不归一化。此对比区不改变上方 Python 使用的 df.csv。</p></section>
     <section class="learning panel"><div class="learning-tabs" role="tablist" aria-label="学习材料"><button id="tab-theory" role="tab" aria-selected="true" aria-controls="learning-content">理解原理</button><button id="tab-steps" role="tab" aria-selected="false" aria-controls="learning-content" tabindex="-1">动手实验</button><button id="tab-source" role="tab" aria-selected="false" aria-controls="learning-content" tabindex="-1">官方资料</button></div><div id="learning-content" role="tabpanel" aria-labelledby="tab-theory"></div></section>
-    <footer>独立制作的 GPAW 学习工具 · 非 GPAW 官方产品<span>教程核对：2026.09.27</span></footer>
+    </section>
+    <footer>独立制作的 GPAW 学习工具 · 非 GPAW 官方产品<span>教程核对：2026.10.02</span></footer>
   </main>
 </div>
 <div id="toast" role="status" hidden></div>
 <input id="py-input" type="file" accept=".py,text/x-python" hidden>
+<input id="comparison-input" type="file" accept=".csv,.txt,text/csv,text/plain" hidden>
 <input id="csv-input" type="file" accept=".csv,.txt,text/csv,text/plain" hidden>
 <input id="asset-input" type="file" accept=".csv,.txt,.dat,.json,.npy,.npz,.png,.jpg,.jpeg,.svg,.py" multiple hidden>
 <dialog id="guide"><div class="dialog-header"><h2>先认识你的实验台</h2><button id="close-guide" aria-label="关闭使用说明">✕</button></div><div class="dialog-body"><p>点击「运行 Python」启动环境。首次使用需下载约 43 MB 的运行文件并校验完整性，后续复用这些下载内容。每次计算都会创建新的隔离环境，禁止连接外部网络。</p><h3>可以直接做什么？</h3><ul><li>编辑或导入 .py，运行标准库、NumPy、SciPy 和 Matplotlib。</li><li>自动显示 plt.show() 的图像；下载图像和生成的数据文件。</li><li>导入 GPAW 五列 df.csv，比较有、无局域场效应的光谱。</li></ul><h3>文件与运行</h3><p>导入文件放在 Python 的当前目录，只保留在当前网页会话。每次运行均从空白环境开始，再载入你添加的数据文件。运行结束、停止或超时后都会销毁计算环境；生成的文件如需再次使用，请先下载再导入。程序运行超过 90 秒会停止，可修改代码后重试。</p><button class="button" id="add-assets">添加 Python 所需的数据文件</button><div id="asset-list"></div><h3>真实 GPAW 计算</h3><p>浏览器不包含 GPAW 原生扩展、PAW 数据和 MPI。第 05 课可以生成 GPAW 脚本，在安装了 GPAW 的 Linux、WSL 或集群运行。网站没有连接远程计算服务器，也不模拟 GPAW 的运行成功。</p><h3>导出图像</h3><p>推荐使用英文坐标标签，内置字体支持数学符号。Matplotlib 绘图和尺寸受限的 PNG 可以直接显示。JPEG、SVG 及其他结果作为文件下载；网页不直接呈现可能包含脚本的 SVG。</p><p class="note">内置代码只在你的浏览器计算，不上传脚本和数据。计算环境禁止外部网络连接和在线安装额外库。请仍只运行可信代码，避免导入敏感数据；浏览器内存资源不能严格配额。</p></div></dialog>
